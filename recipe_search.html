@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FitAI – Recipe Search</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #f0ebf8;
+    --surface:   #ffffff;
+    --panel:     #e8e0f4;
+    --list-bg:   #ddd5ef;
+    --item-bg:   #ede8f8;
+    --item-hover:#e2daf4;
+    --border:    #3d1f7a;
+    --accent:    #3d1f7a;
+    --accent-lt: #6b4bbd;
+    --muted:     #8e7dbf;
+    --text:      #1e0f40;
+    --danger:    #c0436a;
+    --white:     #ffffff;
+    --radius:    16px;
+    --shadow:    0 4px 24px rgba(61,31,122,0.12);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    font-family: 'Nunito', sans-serif;
+    color: var(--text);
+    min-height: 100vh;
+    display: flex; align-items: flex-start; justify-content: center;
+    padding: 32px 16px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 3px solid var(--border);
+    border-radius: 24px;
+    padding: 28px 28px 20px;
+    width: 100%; max-width: 560px;
+    box-shadow: var(--shadow);
+  }
+
+  /* ── LOGO ── */
+  .logo-wrap { display: flex; justify-content: center; margin-bottom: 20px; }
+  .logo {
+    background: #f5f0ff;
+    border: 2px solid #c5b3ee;
+    border-radius: 50%;
+    width: 84px; height: 84px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 0;
+  }
+  .logo-apple { font-size: 34px; line-height: 1; }
+  .logo-text  { font-size: 13px; font-weight: 800; color: var(--accent); letter-spacing: 0.5px; }
+
+  /* ── TOP BAR ── */
+  .topbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .back-btn {
+    background: none; border: none; font-size: 22px; cursor: pointer;
+    color: var(--accent); padding: 4px 6px; line-height: 1;
+    border-radius: 8px; transition: background 0.15s;
+  }
+  .back-btn:hover { background: var(--panel); }
+
+  .search-wrap { flex: 1; position: relative; }
+  .search-input {
+    width: 100%; padding: 10px 14px 10px 40px;
+    border: 1.5px solid #c5b3ee; border-radius: 999px;
+    background: var(--surface); font-size: 14px; font-family: 'Nunito', sans-serif;
+    color: var(--text); outline: none; transition: border-color 0.2s;
+  }
+  .search-input:focus { border-color: var(--accent); }
+  .search-input::placeholder { color: var(--muted); }
+  .search-icon { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 16px; }
+
+  /* History mode label */
+  .hist-label {
+    display: none; flex: 1; align-items: center; gap: 8px;
+    font-size: 15px; font-weight: 700; color: var(--muted);
+  }
+  .hist-label.visible { display: flex; }
+
+  .filter-btn {
+    background: var(--accent); color: white; border: none;
+    border-radius: 999px; padding: 10px 22px; font-size: 14px;
+    font-weight: 700; font-family: 'Nunito', sans-serif; cursor: pointer;
+    transition: background 0.15s; white-space: nowrap;
+  }
+  .filter-btn:hover { background: var(--accent-lt); }
+
+  /* ── VIEW TOGGLE ── */
+  .view-toggle { display: flex; gap: 8px; margin-bottom: 14px; }
+  .vtab {
+    flex: 1; padding: 9px; border-radius: 12px;
+    border: 1.5px solid #c5b3ee; background: white;
+    font-size: 13px; font-weight: 700; font-family: 'Nunito', sans-serif;
+    color: var(--muted); cursor: pointer; transition: all 0.15s; text-align: center;
+  }
+  .vtab.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+  /* ── LIST ── */
+  .list-container {
+    background: var(--list-bg);
+    border-radius: 14px;
+    padding: 10px;
+    min-height: 300px;
+  }
+
+  .recipe-item {
+    background: var(--item-bg);
+    border-radius: 12px;
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 12px;
+    margin-bottom: 8px; cursor: pointer;
+    transition: background 0.15s;
+  }
+  .recipe-item:last-child { margin-bottom: 0; }
+  .recipe-item:hover { background: var(--item-hover); }
+
+  .heart-btn {
+    background: none; border: none; font-size: 20px;
+    cursor: pointer; color: var(--accent); padding: 2px; flex-shrink: 0;
+    line-height: 1;
+  }
+  .heart-btn.liked { color: var(--danger); }
+
+  .food-img {
+    width: 52px; height: 52px; border-radius: 50%; object-fit: cover;
+    border: 2px solid #c5b3ee; flex-shrink: 0;
+    background: #ede8f8; display: flex; align-items: center;
+    justify-content: center; font-size: 26px;
+  }
+
+  .recipe-info { flex: 1; min-width: 0; }
+  .recipe-name { font-size: 15px; font-weight: 700; color: var(--text); }
+  .recipe-sub  { font-size: 12px; color: var(--muted); margin-top: 1px; }
+
+  /* reorder arrows */
+  .arrow-col { display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
+  .arrow-btn {
+    background: none; border: none; font-size: 18px; cursor: pointer;
+    color: var(--muted); line-height: 1; padding: 0 2px;
+    transition: color 0.15s;
+  }
+  .arrow-btn:hover { color: var(--accent); }
+
+  /* ── EMPTY ── */
+  .empty-state {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; padding: 40px 20px;
+    color: var(--muted); font-size: 14px; gap: 10px;
+    font-weight: 600;
+  }
+  .empty-state .big { font-size: 38px; }
+
+  /* ── PAGINATION ── */
+  .pagination {
+    display: flex; align-items: center; justify-content: center;
+    gap: 14px; margin-top: 14px;
+    font-size: 13px; font-weight: 700; color: var(--muted);
+  }
+  .page-btn {
+    background: none; border: none; cursor: pointer;
+    color: var(--muted); font-size: 16px; font-weight: 700;
+    font-family: 'Nunito', sans-serif; padding: 4px 8px;
+    border-radius: 8px; transition: all 0.15s;
+  }
+  .page-btn:hover:not(:disabled) { color: var(--accent); background: var(--panel); }
+  .page-btn:disabled { opacity: 0.3; cursor: default; }
+
+  /* ── FILTERS MODAL ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(30,15,64,0.45); z-index: 100;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+
+  .filter-modal {
+    background: white; border-radius: 20px;
+    border: 2px solid var(--border);
+    padding: 24px; width: 300px; max-height: 80vh;
+    overflow-y: auto; position: relative;
+  }
+  .fm-title { font-size: 17px; font-weight: 800; margin-bottom: 16px; }
+  .fm-close {
+    position: absolute; top: 16px; right: 16px;
+    background: none; border: none; font-size: 20px;
+    cursor: pointer; color: var(--muted);
+  }
+  .fm-item { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .fm-item input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+  .fm-item label { font-size: 14px; font-weight: 600; cursor: pointer; }
+  .fm-apply {
+    width: 100%; margin-top: 8px; background: var(--accent); color: white;
+    border: none; border-radius: 12px; padding: 12px;
+    font-size: 15px; font-weight: 700; font-family: 'Nunito', sans-serif;
+    cursor: pointer; transition: background 0.15s;
+  }
+  .fm-apply:hover { background: var(--accent-lt); }
+
+  /* ── DETAIL MODAL ── */
+  .detail-modal {
+    background: white; border-radius: 20px; border: 2px solid var(--border);
+    padding: 28px; max-width: 500px; width: 92%; max-height: 85vh; overflow-y: auto;
+  }
+  .dm-header { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+  .dm-emoji  { font-size: 50px; line-height: 1; }
+  .dm-title  { font-size: 20px; font-weight: 800; color: var(--text); }
+  .dm-tags   { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+  .dm-tag    { background: #ede8f8; border: 1px solid #c5b3ee; color: var(--accent-lt); font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 999px; }
+  .sec-label { font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin: 18px 0 8px; }
+  .nutr-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; }
+  .nutr-card { background: #f5f0ff; border: 1px solid #ddd5ef; border-radius: 10px; padding: 10px 6px; text-align: center; }
+  .nutr-val  { font-size: 18px; font-weight: 800; color: var(--accent); }
+  .nutr-lbl  { font-size: 10px; color: var(--muted); margin-top: 2px; font-weight: 600; }
+  .steps-ol  { padding-left: 18px; }
+  .steps-ol li { font-size: 14px; color: #444; line-height: 1.7; margin-bottom: 6px; }
+  .tips-ul   { padding-left: 0; list-style: none; }
+  .tips-ul li { font-size: 14px; color: #444; line-height: 1.6; margin-bottom: 5px; padding-left: 20px; position: relative; }
+  .tips-ul li::before { content: '✦'; position: absolute; left: 0; color: #c5b3ee; }
+  .dm-close {
+    width: 100%; margin-top: 16px; background: var(--accent); color: white;
+    border: none; border-radius: 12px; padding: 13px;
+    font-size: 15px; font-weight: 700; font-family: 'Nunito', sans-serif; cursor: pointer;
+  }
+
+  /* ── AI MODAL ── */
+  .ai-modal {
+    background: white; border-radius: 20px; border: 2px solid var(--accent);
+    padding: 28px; max-width: 460px; width: 92%; max-height: 85vh; overflow-y: auto;
+  }
+  .ai-hdr { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+  .ai-icon { width: 42px; height: 42px; background: var(--accent); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+  .ai-title { font-size: 19px; font-weight: 800; }
+  .ai-sub   { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .ai-lbl   { font-size: 12px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .ai-ta    {
+    width: 100%; background: #f5f0ff; border: 1.5px solid #c5b3ee;
+    border-radius: 10px; padding: 12px 14px; font-size: 14px;
+    font-family: 'Nunito', sans-serif; color: var(--text); resize: none;
+    outline: none; transition: border-color 0.2s; min-height: 80px;
+    margin-bottom: 14px;
+  }
+  .ai-ta:focus { border-color: var(--accent); }
+  .ai-ta::placeholder { color: var(--muted); }
+  .ai-go {
+    width: 100%; background: var(--accent); color: white; border: none;
+    border-radius: 12px; padding: 13px; font-size: 15px; font-weight: 700;
+    font-family: 'Nunito', sans-serif; cursor: pointer; display: flex;
+    align-items: center; justify-content: center; gap: 8px; transition: background 0.15s;
+  }
+  .ai-go:hover:not(:disabled) { background: var(--accent-lt); }
+  .ai-go:disabled { opacity: 0.5; cursor: not-allowed; }
+  .ai-results { margin-top: 16px; }
+  .ai-card {
+    background: #f5f0ff; border: 1.5px solid #c5b3ee; border-radius: 12px;
+    padding: 12px 14px; margin-bottom: 8px; cursor: pointer; transition: border-color 0.2s;
+  }
+  .ai-card:hover { border-color: var(--accent); }
+  .ai-card-name { font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .ai-card-why  { font-size: 13px; color: var(--muted); margin-top: 4px; line-height: 1.5; }
+  .in-lib  { color: #3d9e6b; font-size: 11px; font-weight: 700; }
+  .new-idea{ color: #c0436a; font-size: 11px; font-weight: 700; }
+  .ai-cancel {
+    width: 100%; margin-top: 10px; background: transparent;
+    border: 1.5px solid #c5b3ee; color: var(--muted); border-radius: 12px;
+    padding: 11px; font-size: 14px; font-weight: 700;
+    font-family: 'Nunito', sans-serif; cursor: pointer;
+  }
+  .spinner {
+    display: inline-block; width: 16px; height: 16px;
+    border: 2px solid rgba(255,255,255,0.35); border-top-color: white;
+    border-radius: 50%; animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── AI SEARCH button inline ── */
+  .ai-inline-btn {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--accent); color: white; border: none;
+    border-radius: 999px; padding: 10px 18px; font-size: 13px; font-weight: 700;
+    font-family: 'Nunito', sans-serif; cursor: pointer; white-space: nowrap;
+    transition: background 0.15s;
+  }
+  .ai-inline-btn:hover { background: var(--accent-lt); }
+</style>
+</head>
+<body>
+<div class="card">
+
+  <!-- LOGO -->
+  <div class="logo-wrap">
+    <div class="logo">
+      <div class="logo-apple">🍎</div>
+      <div class="logo-text">Fit AI</div>
+    </div>
+  </div>
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <button class="back-btn" onclick="handleBack()">←</button>
+
+    <!-- Search mode -->
+    <div class="search-wrap" id="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input class="search-input" id="search-input" type="text"
+             placeholder="Search Favorite Recipes"
+             onkeydown="onKeyDown(event)"
+             oninput="onTyping(this.value)" />
+    </div>
+
+    <!-- History mode label -->
+    <div class="hist-label" id="hist-label">
+      <span>🕐</span><span>History</span>
+    </div>
+
+    <!-- Filters + AI -->
+    <button class="filter-btn" onclick="openFilters()">Filters</button>
+  </div>
+
+  <!-- VIEW TOGGLE -->
+  <div class="view-toggle">
+    <button class="vtab active" id="vtab-search"   onclick="setView('search')">🔍 Search</button>
+    <button class="vtab"        id="vtab-history"   onclick="setView('history')">🕐 History</button>
+    <button class="vtab"        id="vtab-bookmarks" onclick="setView('bookmarks')">♥ Bookmarks</button>
+    <button class="ai-inline-btn" onclick="openAI()">✦ AI</button>
+  </div>
+
+  <!-- LIST -->
+  <div class="list-container" id="list-container"></div>
+
+  <!-- PAGINATION -->
+  <div class="pagination">
+    <button class="page-btn" id="prev-btn" onclick="changePage(-1)">«&lt;</button>
+    <span id="page-info">Page 1 of 1</span>
+    <button class="page-btn" id="next-btn" onclick="changePage(1)">&gt;»</button>
+  </div>
+</div>
+
+<!-- ── FILTERS MODAL ─────────────────────────────────── -->
+<div class="modal-overlay" id="filter-overlay" onclick="closeFilters(event)">
+  <div class="filter-modal" onclick="event.stopPropagation()">
+    <div class="fm-title">Select Filters</div>
+    <button class="fm-close" onclick="closeFiltersDirect()">✕</button>
+    <div id="filter-checks"></div>
+    <button class="fm-apply" onclick="applyFilters()">Apply</button>
+  </div>
+</div>
+
+<!-- ── DETAIL MODAL ─────────────────────────────────── -->
+<div class="modal-overlay" id="detail-overlay" onclick="closeDetail(event)">
+  <div class="detail-modal" onclick="event.stopPropagation()">
+    <div class="dm-header">
+      <div class="dm-emoji" id="dm-emoji"></div>
+      <div>
+        <div class="dm-title" id="dm-title"></div>
+        <div class="dm-tags"  id="dm-tags"></div>
+      </div>
+    </div>
+    <div class="sec-label">Nutrition per serving</div>
+    <div class="nutr-grid" id="dm-nutr"></div>
+    <div class="sec-label">How to make it</div>
+    <ol  class="steps-ol"  id="dm-steps"></ol>
+    <div class="sec-label">Tips</div>
+    <ul  class="tips-ul"   id="dm-tips"></ul>
+    <button class="dm-close" onclick="closeDetailDirect()">Close</button>
+  </div>
+</div>
+
+<!-- ── AI MODAL ─────────────────────────────────────── -->
+<div class="modal-overlay" id="ai-overlay" onclick="closeAI(event)">
+  <div class="ai-modal" onclick="event.stopPropagation()">
+    <div class="ai-hdr">
+      <div class="ai-icon">✦</div>
+      <div>
+        <div class="ai-title">AI Recipe Finder</div>
+        <div class="ai-sub">Tell me what ingredients you have</div>
+      </div>
+    </div>
+    <div class="ai-lbl">Ingredients you have</div>
+    <textarea class="ai-ta" id="ai-ing" placeholder="e.g. chicken, spinach, lemon, garlic…"></textarea>
+    <div class="ai-lbl">Dietary preferences (optional)</div>
+    <textarea class="ai-ta" id="ai-pref" placeholder="e.g. low-carb, dairy-free, high protein…" style="min-height:56px"></textarea>
+    <button class="ai-go" id="ai-go-btn" onclick="runAI()">
+      <span id="ai-go-text">✦ Find Recipes</span>
+    </button>
+    <div class="ai-results" id="ai-results"></div>
+    <button class="ai-cancel" onclick="closeAIDirect()">Cancel</button>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════
+// CONFIG — point this at your Flask backend
+// ════════════════════════════════════════════════════
+const API = 'http://localhost:5000';
+
+// ════════════════════════════════════════════════════
+// LOCAL DATA (fallback when backend is offline)
+// ════════════════════════════════════════════════════
+const LOCAL_RECIPES = [
+  {id:1,  name:"Chipotle Maple Brussels Sprouts", emoji:"🥦",
+   nutrition:{calories:120,protein:"4g",carbs:"18g",fat:"5g"},
+   steps:["Preheat oven to 220°C (425°F).","Halve 450g Brussels sprouts and toss with olive oil, maple syrup, chipotle powder, garlic powder, salt & pepper.","Spread cut-side down on a sheet pan.","Roast 20–25 min until caramelized and crispy.","Drizzle with a touch more maple syrup before serving."],
+   tips:["Don't crowd the pan — use two sheet pans for max crispiness.","Add a squeeze of lime juice at the end for brightness.","Swap chipotle powder for smoked paprika for a milder version."],
+   tags:["vegetarian","vegan","dairy-free","gluten-free","no-fish","no-shellfish","no-sesame-oil","no-soybeans","no-wheat","no-eggs","no-nuts"]},
+  {id:2,  name:"Beef Tacos", emoji:"🌮",
+   nutrition:{calories:310,protein:"22g",carbs:"24g",fat:"13g"},
+   steps:["Season 400g ground beef with cumin, chili powder, garlic powder, salt & pepper.","Cook in a skillet over medium-high heat until browned, about 8 min.","Warm corn tortillas in a dry pan.","Fill with beef, lettuce, diced tomato, and salsa.","Top with lime juice and fresh cilantro."],
+   tips:["Use 80/20 ground beef for the best flavor.","Double the batch and freeze the meat.","Corn tortillas keep it gluten-free."],
+   tags:["dairy-free","gluten-free","no-fish","no-shellfish","no-sesame-oil","no-soybeans","no-wheat","no-eggs","no-nuts"]},
+  {id:3,  name:"Steak", emoji:"🥩",
+   nutrition:{calories:280,protein:"34g",carbs:"0g",fat:"16g"},
+   steps:["Bring steak to room temperature 30 min before cooking.","Season generously with salt and pepper.","Heat a cast-iron pan until smoking hot.","Sear 3–4 min per side for medium-rare.","Rest 5–10 min before slicing against the grain."],
+   tips:["Dry-brine overnight in the fridge.","Baste with butter, garlic, and thyme.","Use a thermometer: 57°C = medium-rare."],
+   tags:["no-fish","no-shellfish","no-sesame-oil","no-soybeans","no-eggs","no-nuts"]},
+  {id:4,  name:"Sheet Pan Potatoes O'Brien", emoji:"🥔",
+   nutrition:{calories:180,protein:"3g",carbs:"32g",fat:"5g"},
+   steps:["Dice 600g potatoes, ½ red bell pepper, ½ green bell pepper, and ½ onion.","Toss with olive oil, smoked paprika, garlic powder, salt & pepper.","Spread on a sheet pan in a single layer.","Roast at 220°C for 30–35 min, flipping halfway.","Garnish with fresh parsley."],
+   tips:["Parboil potatoes 5 min for extra crispiness.","Add a pinch of cayenne for heat.","Leftovers make a great breakfast hash."],
+   tags:["vegetarian","vegan","dairy-free","gluten-free","no-fish","no-shellfish","no-sesame-oil","no-soybeans","no-wheat","no-eggs","no-nuts"]},
+  {id:5,  name:"Sheet Pan Veggie Buddha Bowl", emoji:"🥗",
+   nutrition:{calories:350,protein:"12g",carbs:"48g",fat:"14g"},
+   steps:["Chop broccoli, chickpeas, zucchini, and cherry tomatoes.","Toss with olive oil, salt, and spices.","Roast at 200°C for 25 min.","Serve over cooked quinoa or brown rice.","Drizzle with tahini-lemon dressing."],
+   tips:["Roast chickpeas separately so they stay crispy.","Batch cook the grains ahead of time.","Tahini dressing: 2 tbsp tahini, 1 tbsp lemon juice, 1 tsp maple syrup."],
+   tags:["vegetarian","vegan","dairy-free","gluten-free","no-fish","no-shellfish","no-sesame-oil","no-soybeans","no-wheat","no-eggs","no-nuts"]},
+  {id:6,  name:"Lemon Garlic Pasta Primavera", emoji:"🍜",
+   nutrition:{calories:420,protein:"14g",carbs:"62g",fat:"13g"},
+   steps:["Cook 300g pasta until al dente; reserve 1 cup pasta water.","Sauté 4 cloves minced garlic in olive oil for 1 min.","Add seasonal vegetables and cook 5 min.","Toss pasta with lemon zest, lemon juice, and parmesan.","Finish with fresh basil."],
+   tips:["Use the pasta water to build a silky sauce.","Add chilli flakes for heat.","Any short pasta works."],
+   tags:["vegetarian","no-fish","no-shellfish","no-sesame-oil","no-soybeans","no-eggs","no-nuts"]},
+  {id:7,  name:"Chickpea Sweet Potato Curry", emoji:"🍛",
+   nutrition:{calories:390,protein:"13g",carbs:"58g",fat:"12g"},
+   steps:["Dice 2 sweet potatoes and drain 1 can chickpeas.","Sauté onion, then add garlic and ginger.","Stir in 2 tbsp curry powder and cook 1 min.","Add sweet potatoes, chickpeas, and coconut milk. Simmer 20 min.","Serve with rice or naan."],
+   tips:["Stir in spinach at the end for extra nutrients.","Leftovers taste even better the next day."],
+   tags:["vegetarian","vegan","dairy-free","gluten-free","no-fish","no-shellfish","no-sesame-oil","no-soybeans","no-wheat","no-eggs","no-nuts"]},
+  {id:8,  name:"Zucchini Noodle Stir Fry", emoji:"🥒",
+   nutrition:{calories:200,protein:"8g",carbs:"16g",fat:"12g"},
+   steps:["Spiralize 3 medium zucchinis.","Stir-fry garlic, ginger, and veggies in sesame oil for 3 min.","Add zucchini noodles and toss for 2 min.","Add soy sauce, rice vinegar, and chilli flakes.","Top with sesame seeds and green onions."],
+   tips:["Salt zucchini and let sit 10 min, then pat dry.","Add tofu or shrimp for extra protein."],
+   tags:["vegetarian","vegan","dairy-free","gluten-free","no-fish","no-shellfish","no-wheat","no-eggs","no-nuts"]},
+  {id:9,  name:"Spinach & Feta Stuffed Peppers", emoji:"🍅",
+   nutrition:{calories:260,protein:"11g",carbs:"22g",fat:"14g"},
+   steps:["Preheat oven to 190°C. Halve and deseed 4 bell peppers.","Sauté 2 cups spinach with garlic until wilted.","Mix spinach with crumbled feta, cooked rice, salt & pepper.","Fill pepper halves and bake covered for 30 min.","Uncover for last 10 min to brown the tops."],
+   tips:["Pre-roast the pepper shells 10 min for softer texture.","Add sun-dried tomatoes for extra depth."],
+   tags:["vegetarian","gluten-free","no-fish","no-shellfish","no-sesame-oil","no-soybeans","no-wheat","no-eggs","no-nuts"]},
+  {id:10, name:"Sweet Potato Black Bean Bowls", emoji:"🫑",
+   nutrition:{calories:370,protein:"14g",carbs:"56g",fat:"10g"},
+   steps:["Cube 2 sweet potatoes and roast with oil, cumin, and smoked paprika for 25 min.","Warm black beans with garlic, cumin, and chilli.","Cook rice or quinoa.","Assemble bowls: grain, sweet potato, beans, avocado, salsa.","Finish with lime juice and cilantro."],
+   tips:["Meal-prep for 4 days — store components separately.","Add a poached egg for extra protein."],
+   tags:["vegetarian","vegan","dairy-free","gluten-free","no-fish","no-shellfish","no-sesame-oil","no-soybeans","no-wheat","no-eggs","no-nuts"]},
+  {id:11, name:"Lentil Vegetable Soup", emoji:"🧄",
+   nutrition:{calories:290,protein:"16g",carbs:"44g",fat:"5g"},
+   steps:["Dice onion, carrots, and celery. Sauté in olive oil 5 min.","Add garlic, cumin, coriander, cook 1 min.","Add red lentils, diced tomatoes, and vegetable broth.","Simmer 25–30 min until lentils are soft.","Season with salt, pepper, and lemon juice."],
+   tips:["Blend half the soup for a creamy-chunky mix.","Freezes beautifully for up to 3 months."],
+   tags:["vegetarian","vegan","dairy-free","gluten-free","no-fish","no-shellfish","no-sesame-oil","no-soybeans","no-wheat","no-eggs","no-nuts"]},
+  {id:12, name:"Avocado Toast Platter", emoji:"🥑",
+   nutrition:{calories:310,protein:"8g",carbs:"28g",fat:"20g"},
+   steps:["Toast thick slices of sourdough or whole grain bread.","Mash 2 ripe avocados with lemon juice, salt, pepper, and chilli flakes.","Spread generously over toast slices.","Top with cherry tomatoes, microgreens, and everything bagel seasoning.","Serve immediately."],
+   tips:["Don't skip the lemon juice — it prevents browning.","Add a soft-boiled egg or smoked salmon for protein."],
+   tags:["vegetarian","vegan","dairy-free","no-fish","no-shellfish","no-sesame-oil","no-soybeans","no-eggs","no-nuts"]},
+];
+
+const ALL_TAGS = [
+  "vegetarian","vegan","pescatarian","dairy-free","gluten-free",
+  "no-fish","no-shellfish","no-sesame-oil","no-soybeans","no-wheat","no-eggs","no-nuts"
+];
+
+// ════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════
+let view          = 'search';   // 'search' | 'history' | 'bookmarks'
+let query         = '';         // committed query (only on Enter/button)
+let typingQuery   = '';         // live typing (NOT used for history)
+let activeFilters = new Set();
+let pendingFilters= new Set();
+let likedIds      = new Set();
+let historyLog    = [];         // [{id, name, emoji, query, time}]
+let allRecipes    = [...LOCAL_RECIPES];
+let page          = 1;
+const PER_PAGE    = 5;
+
+// ════════════════════════════════════════════════════
+// BACKEND SYNC (tries to pull live data from Flask)
+// ════════════════════════════════════════════════════
+async function syncFromBackend() {
+  try {
+    const res = await fetch(`${API}/api/recipes?per_page=100`);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.recipes && data.recipes.length) {
+      // Merge backend data with local details
+      data.recipes.forEach(br => {
+        const local = LOCAL_RECIPES.find(l => l.id === br.id);
+        const merged = local ? { ...local, ...br } : { ...br, steps:[], tips:[], nutrition:{calories:0,protein:'?',carbs:'?',fat:'?'} };
+        const idx = allRecipes.findIndex(r => r.id === br.id);
+        if (idx >= 0) allRecipes[idx] = merged; else allRecipes.push(merged);
+      });
+      render();
+    }
+  } catch(_) { /* backend offline — use local data */ }
+}
+
+// ════════════════════════════════════════════════════
+// VIEW SWITCHING
+// ════════════════════════════════════════════════════
+function setView(v) {
+  view = v; page = 1;
+  ['search','history','bookmarks'].forEach(t => {
+    document.getElementById('vtab-'+t).className = 'vtab' + (t===v?' active':'');
+  });
+  // Show search input only in search view; show history label in history view
+  document.getElementById('search-wrap').style.display  = v==='search'  ? 'block' : 'none';
+  const hl = document.getElementById('hist-label');
+  hl.className = 'hist-label' + (v==='history' ? ' visible' : '');
+  render();
+}
+
+function handleBack() {
+  if (view !== 'search') { setView('search'); return; }
+  query = ''; typingQuery = '';
+  document.getElementById('search-input').value = '';
+  page = 1; render();
+}
+
+// ════════════════════════════════════════════════════
+// SEARCH — only commits on Enter or explicit search
+// ════════════════════════════════════════════════════
+function onTyping(val) {
+  typingQuery = val.trim();
+  // Live filter the list (UX), but do NOT log to history yet
+  page = 1; render();
+}
+
+function onKeyDown(e) {
+  if (e.key === 'Enter') commitSearch();
+}
+
+function commitSearch() {
+  query = typingQuery;
+  if (query) addHistorySearch(query);
+  page = 1; render();
+}
+
+// ════════════════════════════════════════════════════
+// FILTERS
+// ════════════════════════════════════════════════════
+function openFilters() {
+  pendingFilters = new Set(activeFilters);
+  document.getElementById('filter-checks').innerHTML = ALL_TAGS.map(t => `
+    <div class="fm-item">
+      <input type="checkbox" id="fc-${t}" ${pendingFilters.has(t)?'checked':''} onchange="togglePending('${t}')">
+      <label for="fc-${t}">${t.charAt(0).toUpperCase()+t.slice(1).replace(/-/g,' ')}</label>
+    </div>`).join('');
+  document.getElementById('filter-overlay').classList.add('open');
+}
+
+function togglePending(t) { pendingFilters.has(t) ? pendingFilters.delete(t) : pendingFilters.add(t); }
+
+function applyFilters() {
+  activeFilters = new Set(pendingFilters);
+  page = 1; render();
+  closeFiltersDirect();
+}
+
+function closeFilters(e) { if(e.target===document.getElementById('filter-overlay')) closeFiltersDirect(); }
+function closeFiltersDirect() { document.getElementById('filter-overlay').classList.remove('open'); }
+
+// ════════════════════════════════════════════════════
+// DATA HELPERS
+// ════════════════════════════════════════════════════
+function getList() {
+  if (view === 'history')   return historyLog.filter(e=>e.id).map(e=>allRecipes.find(r=>r.id===e.id)).filter(Boolean);
+  if (view === 'bookmarks') return allRecipes.filter(r=>likedIds.has(r.id));
+  // search view — filter by typingQuery (live) + activeFilters
+  const q = typingQuery.toLowerCase();
+  return allRecipes.filter(r =>
+    (!q || r.name.toLowerCase().includes(q)) &&
+    (activeFilters.size===0 || [...activeFilters].every(f => (r.tags||[]).includes(f)))
+  );
+}
+
+// ════════════════════════════════════════════════════
+// HISTORY
+// ════════════════════════════════════════════════════
+function addHistorySearch(q) {
+  historyLog = historyLog.filter(e => e.query !== q || e.id);
+  historyLog.unshift({ query: q, time: new Date() });
+  if (historyLog.length > 40) historyLog.pop();
+}
+
+function addHistoryView(recipe) {
+  historyLog = historyLog.filter(e => e.id !== recipe.id);
+  historyLog.unshift({ id: recipe.id, name: recipe.name, emoji: recipe.emoji, time: new Date() });
+  if (historyLog.length > 40) historyLog.pop();
+}
+
+function timeAgo(d) {
+  const s = Math.floor((Date.now()-d)/1000);
+  if(s<60)return'just now'; if(s<3600)return`${Math.floor(s/60)}m ago`; return`${Math.floor(s/3600)}h ago`;
+}
+
+// ════════════════════════════════════════════════════
+// RENDER
+// ════════════════════════════════════════════════════
+function changePage(dir) {
+  const total = Math.max(1, Math.ceil(getList().length / PER_PAGE));
+  page = Math.max(1, Math.min(page+dir, total)); render();
+}
+
+function render() {
+  const items = getList();
+  const total = Math.max(1, Math.ceil(items.length / PER_PAGE));
+  if (page > total) page = total;
+  const slice = items.slice((page-1)*PER_PAGE, page*PER_PAGE);
+
+  document.getElementById('page-info').textContent = `Page ${page} of ${total}`;
+  document.getElementById('prev-btn').disabled = page<=1;
+  document.getElementById('next-btn').disabled = page>=total;
+
+  const el = document.getElementById('list-container');
+
+  // Empty states
+  if (!slice.length) {
+    const msgs = {
+      search:    ['🔍','No recipes found. Try AI Search!'],
+      history:   ['🕐','No history yet — search for recipes!'],
+      bookmarks: ['♡','No bookmarks yet — heart a recipe!'],
+    };
+    const [ico,msg] = msgs[view];
+    el.innerHTML=`<div class="empty-state"><span class="big">${ico}</span><span>${msg}</span></div>`;
+    return;
+  }
+
+  // History view shows search queries too
+  if (view === 'history') {
+    el.innerHTML = historyLog.slice((page-1)*PER_PAGE, page*PER_PAGE).map(e => {
+      if (e.id) {
+        const r = allRecipes.find(x=>x.id===e.id);
+        if (!r) return '';
+        return `<div class="recipe-item" onclick="clickRecipe(${r.id})">
+          <button class="heart-btn${likedIds.has(r.id)?' liked':''}" onclick="toggleHeart(${r.id},event)">${likedIds.has(r.id)?'♥':'♡'}</button>
+          <div class="food-img">${r.emoji}</div>
+          <div class="recipe-info">
+            <div class="recipe-name">${r.name}</div>
+            <div class="recipe-sub">Viewed · ${timeAgo(e.time)}</div>
+          </div>
+        </div>`;
+      } else {
+        return `<div class="recipe-item" onclick="replaySearch('${e.query.replace(/'/g,"\\'")}')">
+          <span style="font-size:20px;flex-shrink:0">🔍</span>
+          <div class="recipe-info">
+            <div class="recipe-name" style="color:var(--muted)">"${e.query}"</div>
+            <div class="recipe-sub">Searched · ${timeAgo(e.time)}</div>
+          </div>
+        </div>`;
+      }
+    }).join('');
+    return;
+  }
+
+  el.innerHTML = slice.map(r => `
+    <div class="recipe-item" onclick="clickRecipe(${r.id})">
+      <button class="heart-btn${likedIds.has(r.id)?' liked':''}" onclick="toggleHeart(${r.id},event)">${likedIds.has(r.id)?'♥':'♡'}</button>
+      <div class="food-img">${r.emoji}</div>
+      <div class="recipe-info">
+        <div class="recipe-name">${r.name}</div>
+        <div class="recipe-sub">Click to View Details &amp; Link</div>
+      </div>
+      ${view==='bookmarks'?`
+      <div class="arrow-col">
+        <button class="arrow-btn" onclick="moveRecipe(${r.id},'up',event)" title="Move up">⌃</button>
+        <button class="arrow-btn" onclick="moveRecipe(${r.id},'down',event)" title="Move down">⌄</button>
+      </div>`:''}
+    </div>`).join('');
+}
+
+function replaySearch(q) {
+  setView('search');
+  typingQuery = q; query = q;
+  document.getElementById('search-input').value = q;
+  addHistorySearch(q);
+  page=1; render();
+}
+
+// ════════════════════════════════════════════════════
+// HEART / MOVE
+// ════════════════════════════════════════════════════
+function toggleHeart(id, e) {
+  e.stopPropagation();
+  likedIds.has(id) ? likedIds.delete(id) : likedIds.add(id);
+  // Sync with backend
+  if (likedIds.has(id)) fetch(`${API}/api/favorites/${id}`, {method:'POST'}).catch(()=>{});
+  render();
+}
+
+async function moveRecipe(id, dir, e) {
+  e.stopPropagation();
+  try {
+    await fetch(`${API}/api/recipes/${id}/move`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({direction: dir})
+    });
+    await syncFromBackend();
+  } catch(_) {
+    // Local fallback
+    const arr = allRecipes;
+    const idx = arr.findIndex(r=>r.id===id);
+    if (dir==='up'&&idx>0) [arr[idx],arr[idx-1]]=[arr[idx-1],arr[idx]];
+    if (dir==='down'&&idx<arr.length-1) [arr[idx],arr[idx+1]]=[arr[idx+1],arr[idx]];
+    render();
+  }
+}
+
+// ════════════════════════════════════════════════════
+// DETAIL MODAL
+// ════════════════════════════════════════════════════
+async function clickRecipe(id) {
+  let r = allRecipes.find(x=>x.id===id);
+  if (!r) return;
+  addHistoryView(r);
+
+  // Try backend for richer details
+  try {
+    const res = await fetch(`${API}/api/recipes/${id}/details`);
+    if (res.ok) { const d = await res.json(); r = {...r, ...d, nutrition: d.nutrition||r.nutrition}; }
+  } catch(_) {}
+
+  openDetail(r);
+}
+
+function openDetail(r) {
+  document.getElementById('dm-emoji').textContent = r.emoji;
+  document.getElementById('dm-title').textContent = r.name;
+  document.getElementById('dm-tags').innerHTML = (r.tags||[]).slice(0,5).map(t=>`<span class="dm-tag">${t}</span>`).join('');
+  const n = r.nutrition||{};
+  document.getElementById('dm-nutr').innerHTML = [['Calories',n.calories||'—'],['Protein',n.protein||'—'],['Carbs',n.carbs||'—'],['Fat',n.fat||'—']]
+    .map(([l,v])=>`<div class="nutr-card"><div class="nutr-val">${v}</div><div class="nutr-lbl">${l}</div></div>`).join('');
+  document.getElementById('dm-steps').innerHTML = (r.steps||[]).map(s=>`<li>${s}</li>`).join('');
+  document.getElementById('dm-tips').innerHTML  = (r.tips||[]).map(t=>`<li>${t}</li>`).join('');
+  document.getElementById('detail-overlay').classList.add('open');
+}
+
+function closeDetail(e) { if(e.target===document.getElementById('detail-overlay')) closeDetailDirect(); }
+function closeDetailDirect() { document.getElementById('detail-overlay').classList.remove('open'); }
+
+// ════════════════════════════════════════════════════
+// AI MODAL
+// ════════════════════════════════════════════════════
+function openAI()  { document.getElementById('ai-overlay').classList.add('open'); }
+function closeAI(e){ if(e.target===document.getElementById('ai-overlay')) closeAIDirect(); }
+function closeAIDirect() {
+  document.getElementById('ai-overlay').classList.remove('open');
+  document.getElementById('ai-results').innerHTML='';
+  document.getElementById('ai-ing').value='';
+  document.getElementById('ai-pref').value='';
+}
+
+async function runAI() {
+  const ing  = document.getElementById('ai-ing').value.trim();
+  const pref = document.getElementById('ai-pref').value.trim();
+  if (!ing) { document.getElementById('ai-ing').focus(); return; }
+
+  const btn = document.getElementById('ai-go-btn');
+  document.getElementById('ai-go-text').innerHTML = '<span class="spinner"></span> Finding…';
+  btn.disabled = true;
+  document.getElementById('ai-results').innerHTML = '';
+
+  const names = allRecipes.map(r=>r.name).join(', ');
+  const prompt = `You are a recipe assistant. User has ingredients: "${ing}".${pref?` Preferences: "${pref}".`:''}
+
+From this list of available recipes, recommend the 3 best matches:
+${names}
+
+You may also suggest 1–2 new creative recipes that use these ingredients.
+
+Respond ONLY with valid JSON (no markdown, no backticks):
+{"recommendations":[{"name":"Recipe Name","emoji":"🍳","inLibrary":true,"reason":"One sentence why this fits."}]}`;
+
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages",{
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,messages:[{role:"user",content:prompt}]})
+    });
+    const data = await res.json();
+    const raw  = data.content.map(b=>b.text||'').join('');
+    const parsed = JSON.parse(raw.replace(/```json|```/g,'').trim());
+    const recs = parsed.recommendations||[];
+    document.getElementById('ai-results').innerHTML = recs.length
+      ? `<div style="font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">AI Suggestions</div>`
+        + recs.map(r=>{
+            const match = allRecipes.find(x=>x.name.toLowerCase()===r.name.toLowerCase());
+            return `<div class="ai-card" onclick="${match?`clickAIResult(${match.id})`:''}" style="${!match?'cursor:default':''}">
+              <div class="ai-card-name">${r.emoji} ${r.name}
+                ${r.inLibrary&&match?'<span class="in-lib">✓ In library</span>':'<span class="new-idea">✦ New idea</span>'}
+              </div>
+              <div class="ai-card-why">${r.reason}</div>
+            </div>`;
+          }).join('')
+      : `<div style="color:var(--muted);text-align:center;padding:16px;font-size:14px">No matches — try different ingredients.</div>`;
+
+    addHistorySearch(`AI: ${ing.slice(0,35)}${ing.length>35?'…':''}`);
+  } catch(err) {
+    document.getElementById('ai-results').innerHTML=`<div style="color:var(--danger);font-size:13px">${err.message}</div>`;
+  }
+  btn.disabled=false;
+  document.getElementById('ai-go-text').textContent='✦ Find Recipes';
+}
+
+function clickAIResult(id) {
+  closeAIDirect();
+  clickRecipe(id);
+}
+
+// ════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════
+syncFromBackend();
+render();
+</script>
+</body>
+</html>
