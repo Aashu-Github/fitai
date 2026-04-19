@@ -539,6 +539,11 @@ const MEAL_TYPES = ["Breakfast","Lunch","Dinner","Snack"];
 const PER_PAGE   = 5;
 
 let currentUser  = JSON.parse(localStorage.getItem('fitai_user') || 'null');
+// Guest fallback — no login required
+if (!currentUser) {
+  currentUser = {id:1, display_name:'Guest', username:'guest', email:'guest@fitai.com', weight:'', height:'', goal:'Maintain Weight', dietary_prefs:'[]'};
+  localStorage.setItem('fitai_user', JSON.stringify(currentUser));
+}
 let allRecipes   = [];
 let likedIds     = new Set();
 let historyLog   = [];
@@ -583,7 +588,6 @@ function nav(id){
 // INIT
 // ════════════════════════════════════════════════════
 async function init(){
-  if(!currentUser){window.location.href='login.html';return;}
   document.getElementById('welcome-name').textContent=`Welcome Back, ${currentUser.display_name||currentUser.username}!`;
 
   // Load goals
@@ -1059,7 +1063,7 @@ function closeModalDirect(id){document.getElementById(id).classList.remove('open
 // ════════════════════════════════════════════════════
 let toastT;
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2800);}
-async function doLogout(){try{await api('POST','/api/logout');}catch(_){}localStorage.removeItem('fitai_user');window.location.href='login.html?logout=1';}
+async function doLogout(){try{await api('POST','/api/logout');}catch(_){}localStorage.removeItem('fitai_user');location.reload();}
 
 // ════════════════════════════════════════════════════
 // LOCAL FALLBACK DATA
