@@ -509,6 +509,12 @@ body{background:var(--bg);font-family:'Nunito',sans-serif;color:var(--text);min-
 <div class="modal-bg" id="ai-modal" onclick="closeModal('ai-modal',event)">
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-title">✦ AI Recipe Finder</div>
+    <div id="ai-key-banner" style="border-radius:10px;padding:10px 12px;margin-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#f0fdf4;border:1.5px solid #bbf7d0">
+      <span style="font-size:12px;font-weight:700;flex:1;color:#15803d" id="ai-key-label">🔑 Enter your free Gemini API key (one-time setup)</span>
+      <input id="ai-key-input" type="password" placeholder="Paste Gemini key here…" style="flex:1;min-width:140px;padding:7px 10px;border:1.5px solid #bbf7d0;border-radius:8px;font-size:12px;font-family:'Nunito',sans-serif;outline:none;background:#fff"/>
+      <button onclick="saveDashGeminiKey()" style="background:#22c55e;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer">Save Key</button>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.5" id="ai-key-hint">Get a free key at <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--purple)">aistudio.google.com</a> → Create API Key. No credit card needed.</div>
     <div style="font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Ingredients you have</div>
     <textarea id="ai-ing" style="width:100%;background:var(--panel);border:1.5px solid var(--light);border-radius:10px;padding:12px;font-size:14px;font-family:'Nunito',sans-serif;color:var(--text);resize:none;outline:none;min-height:80px;margin-bottom:12px" placeholder="e.g. chicken, spinach, lemon, garlic…"></textarea>
     <div style="font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Dietary preferences (optional)</div>
@@ -956,23 +962,90 @@ async function moveRecipe(id,dir,e){e.stopPropagation();try{await api('POST',`/a
 // ════════════════════════════════════════════════════
 // AI SEARCH
 // ════════════════════════════════════════════════════
-function openAIModal(){document.getElementById('ai-modal').classList.add('open');}
+function openAIModal(){
+  refreshDashKeyBanner();
+  document.getElementById('ai-modal').classList.add('open');
+}
+
+function getGeminiKey(){return localStorage.getItem('fitai_gemini_key')||'';}
+function setGeminiKey(k){localStorage.setItem('fitai_gemini_key',k.trim());}
+
+function saveDashGeminiKey(){
+  const inp=document.getElementById('ai-key-input');
+  const key=inp.value.trim();
+  if(!key||key.startsWith('\u2022')){showToast('Please paste your Gemini API key first.');return;}
+  setGeminiKey(key);
+  refreshDashKeyBanner();
+  showToast('\u2713 Gemini key saved! You only need to do this once.');
+}
+
+function refreshDashKeyBanner(){
+  const key=getGeminiKey();
+  const banner=document.getElementById('ai-key-banner');
+  const label=document.getElementById('ai-key-label');
+  const hint=document.getElementById('ai-key-hint');
+  const input=document.getElementById('ai-key-input');
+  if(key){
+    banner.style.background='#f0fdf4';banner.style.borderColor='#bbf7d0';
+    label.style.color='#15803d';label.textContent='\u2713 Gemini API key saved \u2014 ready!';
+    input.value='\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022';
+    hint.textContent='Key saved in your browser. To update, clear the field and paste a new one.';
+  }else{
+    banner.style.background='#fef2f2';banner.style.borderColor='#fecaca';
+    label.style.color='#dc2626';label.textContent='\ud83d\udd11 Gemini API key required (free, one-time setup)';
+    input.value='';
+    hint.innerHTML='Get a free key at <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--purple)">aistudio.google.com</a> \u2192 Create API Key. No credit card needed.';
+  }
+}
+
 async function runAI(){
-  const ing=document.getElementById('ai-ing').value.trim();if(!ing){document.getElementById('ai-ing').focus();return;}
+  const ing=document.getElementById('ai-ing').value.trim();
+  if(!ing){document.getElementById('ai-ing').focus();return;}
+  const apiKey=getGeminiKey();
+  if(!apiKey){
+    document.getElementById('ai-results').innerHTML='<div class="ai-error">\u26a0\ufe0f Please enter your Gemini API key above first. Get one free at <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a></div>';
+    return;
+  }
   const pref=document.getElementById('ai-pref').value.trim();
-  const btn=document.getElementById('ai-go-btn');document.getElementById('ai-go-text').innerHTML='<span class="spinner"></span> Finding…';btn.disabled=true;
+  const btn=document.getElementById('ai-go-btn');
+  document.getElementById('ai-go-text').innerHTML='<span class="spinner"></span> Finding\u2026';
+  btn.disabled=true;
   document.getElementById('ai-results').innerHTML='';
+  const names=allRecipes.map(r=>r.name).join(', ');
+  const prompt=`You are a recipe assistant. The user has these ingredients: "${ing}".${pref?` Their preferences: "${pref}".`:''}
+
+From this list of available recipes, recommend the 3 best matches:
+${names}
+
+You may also suggest 1-2 new creative recipes using these ingredients.
+
+Respond ONLY with valid JSON (no markdown, no backticks):
+{"recommendations":[{"name":"Recipe Name","emoji":"\ud83c\udf73","inLibrary":true,"reason":"One sentence why."}]}`;
   try{
-    const data=await api('POST','/api/ai/recommend',{ingredients:ing,preferences:pref,recipe_names:allRecipes.map(r=>r.name)});
-    if(data.error){document.getElementById('ai-results').innerHTML=`<div class="ai-error">⚠️ ${data.error}${data.error.includes('ANTHROPIC')?"<br><br><strong>Fix:</strong> In your terminal run:<br><code>export ANTHROPIC_API_KEY=\"sk-ant-...\"</code> then restart <code>python app.py</code>":''}` ;
-    }else{
-      const recs=data.recommendations||[];
-      document.getElementById('ai-results').innerHTML=recs.map(r=>{const match=allRecipes.find(x=>x.name.toLowerCase()===r.name.toLowerCase());return`<div class="ai-card" onclick="${match?`openRecipeDetail(${match.id});closeModalDirect('ai-modal')`:'void(0)'}">
-        <div class="ai-card-name">${r.emoji} ${r.name} ${r.inLibrary&&match?'<span class="in-lib">✓ In library</span>':'<span class="new-idea">✦ New idea</span>'}</div>
-        <div class="ai-card-why">${r.reason}</div></div>`;}).join('')||`<div style="color:var(--muted);text-align:center;padding:16px">No matches — try different ingredients.</div>`;
+    const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({contents:[{parts:[{text:prompt}]}]})
+    });
+    if(!res.ok){
+      const ed=await res.json().catch(()=>({}));
+      const em=ed?.error?.message||`HTTP ${res.status}`;
+      if(res.status===400||res.status===403){localStorage.removeItem('fitai_gemini_key');refreshDashKeyBanner();}
+      throw new Error(em);
     }
-  }catch(err){document.getElementById('ai-results').innerHTML=`<div class="ai-error">⚠️ Cannot reach backend. Make sure <code>python app.py</code> is running.</div>`;}
-  btn.disabled=false;document.getElementById('ai-go-text').textContent='✦ Find Recipes';
+    const data=await res.json();
+    const raw=data?.candidates?.[0]?.content?.parts?.[0]?.text||'';
+    const parsed=JSON.parse(raw.replace(/```json|```/g,'').trim());
+    const recs=parsed.recommendations||[];
+    document.getElementById('ai-results').innerHTML=recs.length
+      ?recs.map(r=>{const match=allRecipes.find(x=>x.name.toLowerCase()===r.name.toLowerCase());
+        return`<div class="ai-card" onclick="${match?`openRecipeDetail(${match.id});closeModalDirect('ai-modal')`:'void(0)'}">
+          <div class="ai-card-name">${r.emoji} ${r.name} ${r.inLibrary&&match?'<span class="in-lib">\u2713 In library</span>':'<span class="new-idea">\u2756 New idea</span>'}</div>
+          <div class="ai-card-why">${r.reason}</div></div>`;}).join('')
+      :`<div style="color:var(--muted);text-align:center;padding:16px">No matches \u2014 try different ingredients.</div>`;
+  }catch(err){
+    document.getElementById('ai-results').innerHTML=`<div class="ai-error">\u26a0\ufe0f ${err.message}</div>`;
+  }
+  btn.disabled=false;document.getElementById('ai-go-text').textContent='\u2756 Find Recipes';
 }
 
 // ════════════════════════════════════════════════════
