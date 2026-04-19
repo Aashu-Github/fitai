@@ -101,40 +101,23 @@ function show(id){
   ['login-err','signup-err','forgot-err'].forEach(e=>{const el=document.getElementById(e);if(el)el.style.display='none';});
 }
 
-async function doLogin(){
+function doLogin(){
   const user=document.getElementById('login-user').value.trim();
   const pass=document.getElementById('login-pass').value;
   const err=document.getElementById('login-err');
   if(!user||!pass){err.textContent='Please fill in all fields.';err.style.display='block';return;}
-  try{
-    const r=await fetch(`${API}/api/login`,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({username:user,password:pass})});
-    const d=await r.json();
-    if(!r.ok){err.textContent=d.error||'Login failed.';err.style.display='block';return;}
-    // Save user info locally for offline fallback
-    localStorage.setItem('fitai_user',JSON.stringify(d.user));
+  if(user==='group6'&&pass==='group6'){
+    localStorage.setItem('fitai_user',JSON.stringify({id:1,display_name:'Group 6',username:'group6',email:'group6@fitai.com',weight:'',height:'',goal:'Maintain Weight',dietary_prefs:'[]'}));
     window.location.href='dashboard.html';
-  }catch(e){
-    // Offline fallback — check localStorage
-    const stored=JSON.parse(localStorage.getItem('fitai_user')||'null');
-    if(stored&&stored.username===user){window.location.href='dashboard.html';}
-    else{err.textContent='Cannot reach server. Make sure python app.py is running.';err.style.display='block';}
+  } else {
+    err.textContent='Incorrect username or password.';err.style.display='block';
   }
 }
 
-async function doSignup(){
+function doSignup(){
   const err=document.getElementById('signup-err');
-  const body={display_name:document.getElementById('su-display').value.trim(),
-    email:document.getElementById('su-email').value.trim(),
-    username:document.getElementById('su-user').value.trim(),
-    password:document.getElementById('su-pass').value,
-    confirm_password:document.getElementById('su-confirm').value};
-  try{
-    const r=await fetch(`${API}/api/signup`,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify(body)});
-    const d=await r.json();
-    if(!r.ok){err.textContent=d.error||'Signup failed.';err.style.display='block';return;}
-    localStorage.setItem('fitai_user',JSON.stringify(d.user));
-    window.location.href='dashboard.html';
-  }catch(e){err.textContent='Cannot reach server.';err.style.display='block';}
+  err.textContent='Sign up disabled. Use username: group6 / password: group6';
+  err.style.display='block';
 }
 
 async function doForgot(){
