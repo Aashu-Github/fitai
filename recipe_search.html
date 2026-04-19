@@ -277,6 +277,46 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
+  /* ── ADD TO TRACKER button ── */
+  .add-tracker-btn {
+    background: #22c55e; color: white; border: none;
+    border-radius: 8px; width: 30px; height: 30px; font-size: 20px;
+    font-weight: 900; cursor: pointer; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    transition: opacity 0.15s; line-height: 1;
+  }
+  .add-tracker-btn:hover { opacity: 0.8; }
+  .add-tracker-btn:active { transform: scale(0.92); }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: #1e0f40; color: #fff; padding: 11px 22px;
+    border-radius: 999px; font-size: 14px; font-weight: 700;
+    font-family: 'Nunito', sans-serif; box-shadow: 0 4px 20px rgba(0,0,0,.25);
+    z-index: 9999; opacity: 0; transition: opacity .25s; pointer-events: none; white-space: nowrap;
+  }
+  .toast.show { opacity: 1; }
+
+  /* ── API KEY SETUP BANNER ── */
+  .api-key-banner {
+    background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: 12px;
+    padding: 12px 14px; margin-bottom: 14px; display: flex;
+    align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  .api-key-banner.error { background: #fef2f2; border-color: #fecaca; }
+  .api-key-input {
+    flex: 1; min-width: 180px; padding: 8px 12px;
+    border: 1.5px solid #bbf7d0; border-radius: 8px;
+    font-size: 13px; font-family: 'Nunito', sans-serif;
+    outline: none; background: #fff;
+  }
+  .api-key-save-btn {
+    background: #22c55e; color: #fff; border: none; border-radius: 8px;
+    padding: 8px 16px; font-size: 13px; font-weight: 700;
+    font-family: 'Nunito', sans-serif; cursor: pointer;
+  }
+
   /* ── AI SEARCH button inline ── */
   .ai-inline-btn {
     display: flex; align-items: center; gap: 6px;
@@ -340,6 +380,25 @@
   </div>
 </div>
 
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- ── ADD TO TRACKER MEAL TYPE PICKER ── -->
+<div class="modal-overlay" id="add-tracker-overlay" onclick="closeAddTracker(event)">
+  <div class="filter-modal" onclick="event.stopPropagation()" style="max-width:280px">
+    <div class="fm-title">Add to Today's Tracker</div>
+    <button class="fm-close" onclick="closeAddTrackerDirect()">✕</button>
+    <div style="font-size:13px;font-weight:700;color:var(--muted);margin-bottom:12px" id="at-recipe-name"></div>
+    <div style="margin-bottom:14px">
+      <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Meal Type</div>
+      <select id="at-meal-type" style="width:100%;padding:10px 14px;border:1.5px solid var(--light);border-radius:10px;font-size:14px;font-family:'Nunito',sans-serif;color:var(--text);background:#fff;outline:none">
+        <option>Breakfast</option><option selected>Lunch</option><option>Dinner</option><option>Snack</option>
+      </select>
+    </div>
+    <button class="fm-apply" onclick="confirmAddToTracker()">➕ Add to Tracker</button>
+  </div>
+</div>
+
 <!-- ── FILTERS MODAL ─────────────────────────────────── -->
 <div class="modal-overlay" id="filter-overlay" onclick="closeFilters(event)">
   <div class="filter-modal" onclick="event.stopPropagation()">
@@ -377,9 +436,22 @@
       <div class="ai-icon">✦</div>
       <div>
         <div class="ai-title">AI Recipe Finder</div>
-        <div class="ai-sub">Tell me what ingredients you have</div>
+        <div class="ai-sub">Powered by Google Gemini (free)</div>
       </div>
     </div>
+
+    <!-- One-time Gemini API Key setup -->
+    <div id="ai-key-section">
+      <div class="api-key-banner" id="ai-key-banner">
+        <span style="font-size:13px;font-weight:700;color:#15803d;flex:1" id="ai-key-label">🔑 Enter your free Gemini API key (one-time setup)</span>
+        <input class="api-key-input" id="ai-key-input" type="password" placeholder="Paste Gemini API key here…" oninput="updateKeyBanner()"/>
+        <button class="api-key-save-btn" onclick="saveGeminiKeyFromInput()">Save Key</button>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.6" id="ai-key-hint">
+        Get a <strong>free</strong> key at <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--accent)">aistudio.google.com</a> → Create API Key. No credit card needed.
+      </div>
+    </div>
+
     <div class="ai-lbl">Ingredients you have</div>
     <textarea class="ai-ta" id="ai-ing" placeholder="e.g. chicken, spinach, lemon, garlic…"></textarea>
     <div class="ai-lbl">Dietary preferences (optional)</div>
@@ -670,6 +742,7 @@ function render() {
         <div class="recipe-name">${r.name}</div>
         <div class="recipe-sub">Click to View Details &amp; Link</div>
       </div>
+      <button class="add-tracker-btn" onclick="openAddToTracker(${r.id},event)" title="Add to today's tracker">+</button>
       ${view==='bookmarks'?`
       <div class="arrow-col">
         <button class="arrow-btn" onclick="moveRecipe(${r.id},'up',event)" title="Move up">⌃</button>
@@ -748,9 +821,12 @@ function closeDetail(e) { if(e.target===document.getElementById('detail-overlay'
 function closeDetailDirect() { document.getElementById('detail-overlay').classList.remove('open'); }
 
 // ════════════════════════════════════════════════════
-// AI MODAL
+// AI MODAL (Google Gemini — free, no server needed)
 // ════════════════════════════════════════════════════
-function openAI()  { document.getElementById('ai-overlay').classList.add('open'); }
+function openAI() {
+  refreshKeyBanner();
+  document.getElementById('ai-overlay').classList.add('open');
+}
 function closeAI(e){ if(e.target===document.getElementById('ai-overlay')) closeAIDirect(); }
 function closeAIDirect() {
   document.getElementById('ai-overlay').classList.remove('open');
@@ -759,10 +835,49 @@ function closeAIDirect() {
   document.getElementById('ai-pref').value='';
 }
 
+function saveGeminiKeyFromInput() {
+  const key = document.getElementById('ai-key-input').value.trim();
+  if (!key || key.startsWith('•')) { alert('Please paste your Gemini API key first.'); return; }
+  saveGeminiKey(key);
+  refreshKeyBanner();
+  showToast('✓ API key saved! You only need to do this once.');
+}
+
+function refreshKeyBanner() {
+  const key = getGeminiKey();
+  const banner = document.getElementById('ai-key-banner');
+  const label  = document.getElementById('ai-key-label');
+  const hint   = document.getElementById('ai-key-hint');
+  const input  = document.getElementById('ai-key-input');
+  if (key) {
+    banner.className = 'api-key-banner';
+    label.style.color = '#15803d';
+    label.textContent = '✓ Gemini API key saved — ready to use!';
+    input.value = '••••••••••••••••';
+    hint.textContent = 'Key saved in your browser. To update it, clear the field and paste a new one.';
+  } else {
+    banner.className = 'api-key-banner error';
+    label.style.color = '#dc2626';
+    label.textContent = '🔑 Gemini API key required (free, one-time setup)';
+    input.value = '';
+    hint.innerHTML = 'Get a <strong>free</strong> key at <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--accent)">aistudio.google.com</a> → Create API Key. No credit card needed.';
+  }
+}
+
 async function runAI() {
   const ing  = document.getElementById('ai-ing').value.trim();
   const pref = document.getElementById('ai-pref').value.trim();
   if (!ing) { document.getElementById('ai-ing').focus(); return; }
+
+  const apiKey = getGeminiKey();
+  if (!apiKey) {
+    document.getElementById('ai-results').innerHTML =
+      `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:12px;color:#dc2626;font-size:13px;font-weight:600">
+        ⚠️ Please enter your Gemini API key above first.<br>
+        Get one free at <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:#3d1f7a">aistudio.google.com</a>
+      </div>`;
+    return;
+  }
 
   const btn = document.getElementById('ai-go-btn');
   document.getElementById('ai-go-text').innerHTML = '<span class="spinner"></span> Finding…';
@@ -770,24 +885,39 @@ async function runAI() {
   document.getElementById('ai-results').innerHTML = '';
 
   const names = allRecipes.map(r=>r.name).join(', ');
-  const prompt = `You are a recipe assistant. User has ingredients: "${ing}".${pref?` Preferences: "${pref}".`:''}
+  const prompt = `You are a recipe assistant. The user has these ingredients: "${ing}".${pref?` Their preferences: "${pref}".`:''}
 
 From this list of available recipes, recommend the 3 best matches:
 ${names}
 
-You may also suggest 1–2 new creative recipes that use these ingredients.
+You may also suggest 1-2 new creative recipes using these ingredients.
 
-Respond ONLY with valid JSON (no markdown, no backticks):
+Respond ONLY with valid JSON (no markdown, no backticks, no explanation):
 {"recommendations":[{"name":"Recipe Name","emoji":"🍳","inLibrary":true,"reason":"One sentence why this fits."}]}`;
 
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages",{
-      method:"POST", headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,messages:[{role:"user",content:prompt}]})
-    });
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+      }
+    );
+    if (!res.ok) {
+      const errData = await res.json().catch(()=>({}));
+      const errMsg = errData?.error?.message || `HTTP ${res.status}`;
+      if (res.status === 400 || res.status === 403) {
+        localStorage.removeItem('fitai_gemini_key');
+        refreshKeyBanner();
+        throw new Error('Invalid API key. Please enter a valid Gemini key above. ' + errMsg);
+      }
+      throw new Error(errMsg);
+    }
     const data = await res.json();
-    const raw  = data.content.map(b=>b.text||'').join('');
-    const parsed = JSON.parse(raw.replace(/```json|```/g,'').trim());
+    const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const cleaned = raw.replace(/```json|```/g,'').trim();
+    const parsed = JSON.parse(cleaned);
     const recs = parsed.recommendations||[];
     document.getElementById('ai-results').innerHTML = recs.length
       ? `<div style="font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">AI Suggestions</div>`
@@ -804,7 +934,8 @@ Respond ONLY with valid JSON (no markdown, no backticks):
 
     addHistorySearch(`AI: ${ing.slice(0,35)}${ing.length>35?'…':''}`);
   } catch(err) {
-    document.getElementById('ai-results').innerHTML=`<div style="color:var(--danger);font-size:13px">${err.message}</div>`;
+    document.getElementById('ai-results').innerHTML=
+      `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:12px;color:#dc2626;font-size:13px;font-weight:600">⚠️ ${err.message}</div>`;
   }
   btn.disabled=false;
   document.getElementById('ai-go-text').textContent='✦ Find Recipes';
@@ -814,6 +945,63 @@ function clickAIResult(id) {
   closeAIDirect();
   clickRecipe(id);
 }
+
+// ════════════════════════════════════════════════════
+// ADD TO TRACKER  (shared localStorage with dashboard)
+// ════════════════════════════════════════════════════
+const STORAGE_KEY = 'fitai_v1';
+let pendingAddRecipe = null;
+
+function loadLog(){try{return JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}').log||{};}catch{return{};}}
+function saveLog(log){const s=JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}');s.log=log;localStorage.setItem(STORAGE_KEY,JSON.stringify(s));}
+function todayKey(){return new Date().toISOString().slice(0,10);}
+
+function openAddToTracker(id, e) {
+  e.stopPropagation();
+  const r = allRecipes.find(x => x.id === id);
+  if (!r) return;
+  pendingAddRecipe = r;
+  document.getElementById('at-recipe-name').textContent = r.emoji + ' ' + r.name;
+  document.getElementById('add-tracker-overlay').classList.add('open');
+}
+function closeAddTracker(e){ if(e.target===document.getElementById('add-tracker-overlay')) closeAddTrackerDirect(); }
+function closeAddTrackerDirect(){ document.getElementById('add-tracker-overlay').classList.remove('open'); pendingAddRecipe=null; }
+
+function confirmAddToTracker() {
+  if (!pendingAddRecipe) return;
+  const r = pendingAddRecipe;
+  const type = document.getElementById('at-meal-type').value;
+  const n = r.nutrition || {};
+  const entry = {
+    type, name: r.emoji + ' ' + r.name,
+    cal:  parseInt(n.calories || r.calories || 0) || 0,
+    pro:  parseInt(String(n.protein  || r.protein  || 0).replace('g','')) || 0,
+    carb: parseInt(String(n.carbs    || r.carbs    || 0).replace('g','')) || 0,
+    fat:  parseInt(String(n.fat      || r.fat      || 0).replace('g','')) || 0,
+    ts: Date.now()
+  };
+  const log = loadLog();
+  if (!log[todayKey()]) log[todayKey()] = [];
+  log[todayKey()].push(entry);
+  saveLog(log);
+  closeAddTrackerDirect();
+  showToast('✓ ' + r.name + ' added to ' + type + ' in Tracker!');
+}
+
+let toastTimer;
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+// ════════════════════════════════════════════════════
+// GEMINI API KEY MANAGEMENT (one-time setup)
+// ════════════════════════════════════════════════════
+function getGeminiKey() { return localStorage.getItem('fitai_gemini_key') || ''; }
+function saveGeminiKey(key) { localStorage.setItem('fitai_gemini_key', key.trim()); }
+function updateKeyBanner() { /* called on input — no action needed, key saved on button click */ }
 
 // ════════════════════════════════════════════════════
 // INIT
