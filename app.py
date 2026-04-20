@@ -9,12 +9,12 @@
 # ─────────────────────────────────────────────────────────────────────────────
 
 import os
-from flask import Flask
+from flask import Flask, send_from_directory
 from flask_cors import CORS
 from repository import init_db
 from routes import all_routes
 
-app = Flask(__name__, static_folder=".", static_url_path="")
+app = Flask(__name__, static_folder="static")
 app.secret_key = os.environ.get("SECRET_KEY", "fitai-dev-secret-change-in-production")
 CORS(app, supports_credentials=True)
 
@@ -25,10 +25,9 @@ app.register_blueprint(all_routes)
 @app.route("/")
 def index():
     return app.send_static_file("login.html")
-
 @app.route("/<path:filename>")
-def static_files(filename):
-    return app.send_static_file(filename)
+def serve_static(filename):
+    return send_from_directory("static", filename)
 
 if __name__ == "__main__":
     print("=" * 55)

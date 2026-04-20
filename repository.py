@@ -128,7 +128,7 @@ def create_user(display_name, username, email, password) -> dict:
     finally:
         conn.close()
 
-def login_user(username, password) -> dict | None:
+def login_user(username, password):
     conn = get_db()
     row = conn.execute(
         "SELECT * FROM users WHERE (username=? OR email=?) AND password_hash=?",
@@ -137,7 +137,7 @@ def login_user(username, password) -> dict | None:
     conn.close()
     return dict(row) if row else None
 
-def fetch_user(user_id=1) -> dict | None:
+def fetch_user(user_id=1): 
     conn = get_db()
     row = conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
     conn.close()
@@ -179,7 +179,7 @@ def fetch_recipes(active_tags, page, per_page) -> dict:
     return {"recipes": recipes[(page-1)*per_page : page*per_page], "total": total,
             "page": page, "per_page": per_page, "total_pages": total_pages}
 
-def fetch_recipe_by_id(recipe_id) -> dict | None:
+def fetch_recipe_by_id(recipe_id): 
     conn = get_db()
     row = conn.execute("SELECT * FROM recipes WHERE id=?", (recipe_id,)).fetchone()
     conn.close()
@@ -213,7 +213,7 @@ def _recipe_dict(row) -> dict:
 # RECIPE DETAILS  (Sai — UC-07/08)
 # ══════════════════════════════════════════════════════════════════════════════
 
-def fetch_details(recipe_id) -> dict | None:
+def fetch_details(recipe_id): 
     conn = get_db()
     row = conn.execute("""
         SELECT rd.*, r.name, r.emoji, r.tags
@@ -248,7 +248,7 @@ def fetch_all_with_details() -> list:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# FAVORITES  (Roshini — UC-09)
+# FAVORITES  (Roshini — UC-09 Favorites Management)
 # ══════════════════════════════════════════════════════════════════════════════
 
 def fetch_favorites(user_id=1) -> list:
@@ -275,7 +275,7 @@ def remove_favorite(user_id, recipe_id) -> list:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# NUTRITION LOG  (Roshini — UC-10)
+# NUTRITION LOG  (Roshini — UC-10 Nutrition Tracking)
 # ══════════════════════════════════════════════════════════════════════════════
 
 def log_meal_entry(user_id, log_date, meal_type, name, calories, protein, carbs, fat, ts) -> list:

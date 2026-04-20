@@ -4,7 +4,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 
 import os, json
-import urllib.request, urllib.error
+import urllib.request, urllib.error, urllib.parse
 from flask import Blueprint, request, jsonify, session
 import services
 
@@ -329,4 +329,3 @@ def meal_detail():
         return jsonify({"error": str(e)}), 500
 
 
-import urllib.parse  # make sure this is available
