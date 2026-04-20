@@ -255,7 +255,10 @@ body{background:var(--bg);font-family:'Nunito',sans-serif;color:var(--text);min-
   <!-- ── WEEKLY PLAN ── -->
   <div class="page-section" id="sec-weekly">
     <div class="section-card">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+     <div style="margin-bottom:12px;">
+       <button class="btn btn-sm btn-outline" onclick="nav('dashboard')">← Back to Home</button>
+     </div>  
+     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
         <div style="font-size:22px;font-weight:900;text-align:center;flex:1">Weekly Plan</div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-sm btn-outline" onclick="toggleEdit()" id="edit-toggle-btn">✏️ Edit</button>
