@@ -436,19 +436,7 @@
       <div class="ai-icon">✦</div>
       <div>
         <div class="ai-title">AI Recipe Finder</div>
-        <div class="ai-sub">Powered by Google Gemini (free)</div>
-      </div>
-    </div>
-
-    <!-- One-time Gemini API Key setup -->
-    <div id="ai-key-section">
-      <div class="api-key-banner" id="ai-key-banner">
-        <span style="font-size:13px;font-weight:700;color:#15803d;flex:1" id="ai-key-label">🔑 Enter your free Gemini API key (one-time setup)</span>
-        <input class="api-key-input" id="ai-key-input" type="password" placeholder="Paste Gemini API key here…" oninput="updateKeyBanner()"/>
-        <button class="api-key-save-btn" onclick="saveGeminiKeyFromInput()">Save Key</button>
-      </div>
-      <div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.6" id="ai-key-hint">
-        Get a <strong>free</strong> key at <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--accent)">aistudio.google.com</a> → Create API Key. No credit card needed.
+        <div class="ai-sub">Powered by Claude AI</div>
       </div>
     </div>
 
@@ -869,76 +857,42 @@ async function runAI() {
   const pref = document.getElementById('ai-pref').value.trim();
   if (!ing) { document.getElementById('ai-ing').focus(); return; }
 
-  const apiKey = getGeminiKey();
-  if (!apiKey) {
-    document.getElementById('ai-results').innerHTML =
-      `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:12px;color:#dc2626;font-size:13px;font-weight:600">
-        ⚠️ Please enter your Gemini API key above first.<br>
-        Get one free at <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:#3d1f7a">aistudio.google.com</a>
-      </div>`;
-    return;
-  }
-
   const btn = document.getElementById('ai-go-btn');
   document.getElementById('ai-go-text').innerHTML = '<span class="spinner"></span> Finding…';
   btn.disabled = true;
   document.getElementById('ai-results').innerHTML = '';
 
-  const names = allRecipes.map(r=>r.name).join(', ');
-  const prompt = `You are a recipe assistant. The user has these ingredients: "${ing}".${pref?` Their preferences: "${pref}".`:''}
-
-From this list of available recipes, recommend the 3 best matches:
-${names}
-
-You may also suggest 1-2 new creative recipes using these ingredients.
-
-Respond ONLY with valid JSON (no markdown, no backticks, no explanation):
-{"recommendations":[{"name":"Recipe Name","emoji":"🍳","inLibrary":true,"reason":"One sentence why this fits."}]}`;
+  const names = allRecipes.map(r => r.name);
 
   try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-      }
-    );
-    if (!res.ok) {
-      const errData = await res.json().catch(()=>({}));
-      const errMsg = errData?.error?.message || `HTTP ${res.status}`;
-      if (res.status === 400 || res.status === 403) {
-        localStorage.removeItem('fitai_gemini_key');
-        refreshKeyBanner();
-        throw new Error('Invalid API key. Please enter a valid Gemini key above. ' + errMsg);
-      }
-      throw new Error(errMsg);
-    }
+    const res = await fetch(`${API}/api/ai/recommend`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ingredients: ing, preferences: pref, recipe_names: names })
+    });
     const data = await res.json();
-    const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    const cleaned = raw.replace(/```json|```/g,'').trim();
-    const parsed = JSON.parse(cleaned);
-    const recs = parsed.recommendations||[];
+    if (!res.ok) throw new Error(data.error || `Server error ${res.status}`);
+    const recs = data.recommendations || [];
     document.getElementById('ai-results').innerHTML = recs.length
       ? `<div style="font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">AI Suggestions</div>`
-        + recs.map(r=>{
-            const match = allRecipes.find(x=>x.name.toLowerCase()===r.name.toLowerCase());
-            return `<div class="ai-card" onclick="${match?`clickAIResult(${match.id})`:''}" style="${!match?'cursor:default':''}">
+        + recs.map(r => {
+            const match = allRecipes.find(x => x.name.toLowerCase() === r.name.toLowerCase());
+            return `<div class="ai-card" onclick="${match ? `clickAIResult(${match.id})` : ''}" style="${!match ? 'cursor:default' : ''}">
               <div class="ai-card-name">${r.emoji} ${r.name}
-                ${r.inLibrary&&match?'<span class="in-lib">✓ In library</span>':'<span class="new-idea">✦ New idea</span>'}
+                ${r.inLibrary && match ? '<span class="in-lib">✓ In library</span>' : '<span class="new-idea">✦ New idea</span>'}
               </div>
               <div class="ai-card-why">${r.reason}</div>
             </div>`;
           }).join('')
       : `<div style="color:var(--muted);text-align:center;padding:16px;font-size:14px">No matches — try different ingredients.</div>`;
 
-    addHistorySearch(`AI: ${ing.slice(0,35)}${ing.length>35?'…':''}`);
+    addHistorySearch(`AI: ${ing.slice(0, 35)}${ing.length > 35 ? '…' : ''}`);
   } catch(err) {
-    document.getElementById('ai-results').innerHTML=
+    document.getElementById('ai-results').innerHTML =
       `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:12px;color:#dc2626;font-size:13px;font-weight:600">⚠️ ${err.message}</div>`;
   }
-  btn.disabled=false;
-  document.getElementById('ai-go-text').textContent='✦ Find Recipes';
+  btn.disabled = false;
+  document.getElementById('ai-go-text').textContent = '✦ Find Recipes';
 }
 
 function clickAIResult(id) {
@@ -995,13 +949,6 @@ function showToast(msg){
   clearTimeout(toastTimer);
   toastTimer=setTimeout(()=>t.classList.remove('show'),2800);
 }
-
-// ════════════════════════════════════════════════════
-// GEMINI API KEY MANAGEMENT (one-time setup)
-// ════════════════════════════════════════════════════
-function getGeminiKey() { return localStorage.getItem('fitai_gemini_key') || ''; }
-function saveGeminiKey(key) { localStorage.setItem('fitai_gemini_key', key.trim()); }
-function updateKeyBanner() { /* called on input — no action needed, key saved on button click */ }
 
 // ════════════════════════════════════════════════════
 // INIT
