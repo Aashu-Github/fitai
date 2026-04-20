@@ -24,7 +24,7 @@ app.register_blueprint(all_routes)
 # Serve HTML files directly
 @app.route("/")
 def index():
-    return app.send_static_file("login.html")
+    return send_from_directory("static", "login.html")
 @app.route("/<path:filename>")
 def serve_static(filename):
     return send_from_directory("static", filename)
