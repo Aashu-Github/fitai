@@ -1,4 +1,5 @@
-fitai.db
+venv/
 __pycache__/
 *.pyc
+fitai.db
 .DS_Store
