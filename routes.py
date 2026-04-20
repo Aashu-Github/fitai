@@ -10,7 +10,11 @@ import services
 
 all_routes = Blueprint("all_routes", __name__)
 
-ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+# ─────────────────────────────────────────────────────────────────────────────
+# PASTE YOUR GROQ API KEY BELOW (between the quotes)  ← FREE, no credit card
+# Get one at: https://console.groq.com  → API Keys → Create API Key
+# ─────────────────────────────────────────────────────────────────────────────
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "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")
 
 
 def current_user_id():
@@ -234,22 +238,22 @@ def delete_meal():
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# AI PROXY  — server-side Anthropic call (fixes browser CORS)
+# AI PROXY  — server-side Groq call (free tier, no credit card needed)
 # ══════════════════════════════════════════════════════════════════════════════
 
 @all_routes.route("/api/ai/recommend", methods=["POST"])
 def ai_recommend():
     """
-    Receives prompt from frontend, calls Anthropic API server-side,
-    returns recommendations. Requires ANTHROPIC_API_KEY env variable.
+    Receives prompt from frontend, calls Groq API server-side (free tier).
+    Requires GROQ_API_KEY — get one free at https://console.groq.com
     """
-    if not ANTHROPIC_API_KEY:
-        return jsonify({"error": "ANTHROPIC_API_KEY not set. See README for setup instructions."}), 500
+    if not GROQ_API_KEY or GROQ_API_KEY == "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":
+        return jsonify({"error": "Groq API key not set. Open routes.py and paste your key into GROQ_API_KEY."}), 500
 
     d            = request.get_json(force=True)
-    ingredients  = d.get("ingredients","").strip()
-    preferences  = d.get("preferences","").strip()
-    recipe_names = d.get("recipe_names",[])
+    ingredients  = d.get("ingredients", "").strip()
+    preferences  = d.get("preferences", "").strip()
+    recipe_names = d.get("recipe_names", [])
 
     if not ingredients:
         return jsonify({"error": "No ingredients provided"}), 400
@@ -266,23 +270,28 @@ Respond ONLY with valid JSON (no markdown, no backticks, no preamble):
 {{"recommendations":[{{"name":"Recipe Name","emoji":"🍳","inLibrary":true,"reason":"One sentence why this fits."}}]}}"""
 
     payload = json.dumps({
-        "model": "claude-opus-4-6", "max_tokens": 800,
-        "messages": [{"role":"user","content":prompt}]
+        "model": "llama3-8b-8192",
+        "max_tokens": 800,
+        "messages": [{"role": "user", "content": prompt}]
     }).encode("utf-8")
 
     req = urllib.request.Request(
-        "https://api.anthropic.com/v1/messages", data=payload,
-        headers={"Content-Type":"application/json","x-api-key":ANTHROPIC_API_KEY,"anthropic-version":"2023-06-01"},
+        "https://api.groq.com/openai/v1/chat/completions",
+        data=payload,
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {GROQ_API_KEY}"
+        },
         method="POST"
     )
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
             result = json.loads(resp.read().decode("utf-8"))
-        raw    = "".join(b.get("text","") for b in result.get("content",[]))
-        parsed = json.loads(raw.strip().replace("```json","").replace("```","").strip())
+        raw    = result["choices"][0]["message"]["content"]
+        parsed = json.loads(raw.strip().replace("```json", "").replace("```", "").strip())
         return jsonify(parsed)
     except urllib.error.HTTPError as e:
-        return jsonify({"error": f"Anthropic API error {e.code}: {e.read().decode()}"}), 502
+        return jsonify({"error": f"Groq API error {e.code}: {e.read().decode()}"}), 502
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
