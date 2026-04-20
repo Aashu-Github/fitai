@@ -49,8 +49,7 @@ The first run auto-creates fitai.db and seeds all 12 recipes. You will see:
   FitAI Backend — http://localhost:5000
 
 ### 3 — Open the frontend
-Open recipe_search.html in your browser (double-click it or drag into Chrome).
-It connects to http://localhost:5000 automatically.
+Open http://localhost:5000/login.html. This will take you to the homepage where you can log in/create an account.
 
 ---
 
